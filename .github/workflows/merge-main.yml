@@ -1,0 +1,48 @@
+name: Merge to Main
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/ISSUE_TEMPLATE/*'
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: Release
+    runs-on: ubuntu-22.04        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Conventional Changelog Update
+        continue-on-error: true
+        uses: TriPSs/conventional-changelog-action@v3
+        id: changelog
+        with:
+          github-token: ${{ github.token }}
+          output-file: "CHANGELOG.md"
+          skip-version-file: "true"
+          skip-commit: "true"
+          git-push: "false"
+          skip-on-empty: "false"
+          git-branch: refs/heads/${{ github.head_ref }}
+
+      - name: Create a release
+        uses: softprops/action-gh-release@v1
+        id: create_release
+        with:
+          draft: false
+          prerelease: false
+          name: v${{ steps.changelog.outputs.version }}
+          tag_name: v${{ steps.changelog.outputs.version }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
+          token: ${{ github.token }}          
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
